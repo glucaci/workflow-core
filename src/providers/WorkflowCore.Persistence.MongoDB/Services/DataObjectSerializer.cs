@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace WorkflowCore.Persistence.MongoDB.Services
@@ -35,7 +36,7 @@ namespace WorkflowCore.Persistence.MongoDB.Services
             {
                 doc = value.ToBsonDocument();
                 doc.Remove("_t");
-                doc.InsertAt(0, new BsonElement("_t", value.GetType().FullName));
+                doc.InsertAt(0, new BsonElement("_t", RemoveAssemblyDetails(value.GetType().AssemblyQualifiedName)));
                 AddTypeInformation(doc.Elements, value, string.Empty);
             }
             else
@@ -96,7 +97,7 @@ namespace WorkflowCore.Persistence.MongoDB.Services
                 parts.RemoveAt(0);
             }
 
-            return value.GetType().FullName;
+            return RemoveAssemblyDetails(value.GetType().AssemblyQualifiedName);
         }
 
         private void AddTypeInformation(IEnumerable<BsonValue> elements, object value, string xPath)
@@ -153,6 +154,50 @@ namespace WorkflowCore.Persistence.MongoDB.Services
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// https://github.com/JamesNK/Newtonsoft.Json/blob/e44ab3348fabcbe9ed6b5053b706a9e10b945ba1/Src/Newtonsoft.Json/Utilities/ReflectionUtils.cs#L183
+        /// </summary>
+        private static string RemoveAssemblyDetails(string fullyQualifiedTypeName)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            // loop through the type name and filter out qualified assembly details from nested type names
+            bool writingAssemblyName = false;
+            bool skippingAssemblyDetails = false;
+            for (int i = 0; i < fullyQualifiedTypeName.Length; i++)
+            {
+                char current = fullyQualifiedTypeName[i];
+                switch (current)
+                {
+                    case '[':
+                    case ']':
+                        writingAssemblyName = false;
+                        skippingAssemblyDetails = false;
+                        builder.Append(current);
+                        break;
+                    case ',':
+                        if (!writingAssemblyName)
+                        {
+                            writingAssemblyName = true;
+                            builder.Append(current);
+                        }
+                        else
+                        {
+                            skippingAssemblyDetails = true;
+                        }
+                        break;
+                    default:
+                        if (!skippingAssemblyDetails)
+                        {
+                            builder.Append(current);
+                        }
+                        break;
+                }
+            }
+
+            return builder.ToString();
         }
     }
 }
