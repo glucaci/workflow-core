@@ -35,7 +35,7 @@ namespace WorkflowCore.Persistence.MongoDB.Services
             {
                 doc = value.ToBsonDocument();
                 doc.Remove("_t");
-                doc.InsertAt(0, new BsonElement("_t", value.GetType().AssemblyQualifiedName));
+                doc.InsertAt(0, new BsonElement("_t", value.GetType().FullName));
                 AddTypeInformation(doc.Elements, value, string.Empty);
             }
             else
@@ -96,7 +96,7 @@ namespace WorkflowCore.Persistence.MongoDB.Services
                 parts.RemoveAt(0);
             }
 
-            return value.GetType().AssemblyQualifiedName;
+            return value.GetType().FullName;
         }
 
         private void AddTypeInformation(IEnumerable<BsonValue> elements, object value, string xPath)
