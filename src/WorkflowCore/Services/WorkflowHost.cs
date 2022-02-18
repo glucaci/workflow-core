@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 using WorkflowCore.Models.LifeCycleEvents;
-using WorkflowCore.Services.BackgroundTasks;
 
 namespace WorkflowCore.Services
 {

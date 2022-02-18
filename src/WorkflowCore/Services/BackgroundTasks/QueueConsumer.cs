@@ -11,65 +11,6 @@ using WorkflowCore.Models;
 
 namespace WorkflowCore.Services.BackgroundTasks
 {
-    internal static class WorkflowActivity
-    {
-        private static readonly ActivitySource Current = new ActivitySource("WorkflowCore");
-
-        public static Activity StartConsume(QueueType queueType)
-        {
-            Activity.Current = null;
-            var activity = Current.StartActivity($"Workflow Consume {queueType}", ActivityKind.Consumer);
-            activity?.SetTag("workflow.queue", queueType);
-
-            return activity;
-        }
-
-        public static Activity StartPoll(string type)
-        {
-            Activity.Current = null;
-            var activity = Current.StartActivity($"Workflow Poll {type}", ActivityKind.Consumer);
-            activity?.SetTag("workflow.poll", type);
-
-            return activity;
-        }
-
-        public static void EnrichWorkflow(WorkflowInstance workflow)
-        {
-            var current = Activity.Current;
-            if (current != null)
-            {
-                current.DisplayName = $"Workflow {workflow.WorkflowDefinitionId}";
-                current.SetTag("worklfow.id", workflow.Id);
-                current.SetTag("worklfow.definition", workflow.WorkflowDefinitionId);
-                current.SetTag("worklfow.status", workflow.Status);
-            }
-        }
-
-        public static void EnrichWorkflow(WorkflowExecutorResult result)
-        {
-            // TODO: attach errors
-            // TODO: set status
-        }
-
-        public static void Enrich(WorkflowStep workflowStep)
-        {
-            var current = Activity.Current;
-            if (current != null)
-            {
-                var stepName = string.IsNullOrEmpty(workflowStep.Name) ? "Inline" : workflowStep.Name;
-                current.DisplayName += $" Step {stepName}";
-            }
-        }
-
-        public static Activity StartHost()
-        {
-            Activity.Current = null;
-            var activity = Current.StartActivity("Workflow Start Host", ActivityKind.Client);
-
-            return activity;
-        }
-    }
-
     internal abstract class QueueConsumer : IBackgroundTask
     {
         protected abstract QueueType Queue { get; }
