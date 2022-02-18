@@ -12,9 +12,7 @@ namespace WorkflowCore.Services
         internal static Activity StartHost()
         {
             var activityName = "workflow start host";
-            var activity = ActivitySource.StartRootActivity(activityName, ActivityKind.Internal);
-
-            return activity;
+            return ActivitySource.StartRootActivity(activityName, ActivityKind.Internal);
         }
 
         internal static Activity StartConsume(QueueType queueType)
