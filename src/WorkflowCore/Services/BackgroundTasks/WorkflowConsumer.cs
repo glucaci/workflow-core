@@ -45,7 +45,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                 cancellationToken.ThrowIfCancellationRequested();
                 workflow = await _persistenceStore.GetWorkflowInstance(itemId, cancellationToken);
 
-                WorkflowActivity.Enrich(workflow);
+                WorkflowActivity.Enrich(workflow, "process");
                 if (workflow.Status == WorkflowStatus.Runnable)
                 {
                     try

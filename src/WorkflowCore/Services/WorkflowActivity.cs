@@ -38,12 +38,12 @@ namespace WorkflowCore.Services
             return activity;
         }
 
-        internal static void Enrich(WorkflowInstance workflow)
+        internal static void Enrich(WorkflowInstance workflow, string action)
         {
             var activity = Activity.Current;
             if (activity != null)
             {
-                activity.DisplayName = $"workflow {workflow.WorkflowDefinitionId}";
+                activity.DisplayName = $"workflow {action} {workflow.WorkflowDefinitionId}";
                 activity.SetTag("workflow.id", workflow.Id);
                 activity.SetTag("workflow.definition", workflow.WorkflowDefinitionId);
                 activity.SetTag("workflow.status", workflow.Status);
@@ -79,6 +79,18 @@ namespace WorkflowCore.Services
                     activity.SetStatus(Status.Error);
                     activity.SetStatus(ActivityStatusCode.Error);
                 }
+            }
+        }
+
+        internal static void Enrich(Event evt)
+        {
+            var activity = Activity.Current;
+            if (activity != null)
+            {
+                activity.DisplayName = $"workflow process {evt.EventName}";
+                activity.SetTag("workflow.event.id", evt.Id);
+                activity.SetTag("workflow.event.name", evt.EventName);
+                activity.SetTag("workflow.event.processed", evt.IsProcessed);
             }
         }
 
