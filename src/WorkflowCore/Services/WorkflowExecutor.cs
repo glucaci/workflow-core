@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 using WorkflowCore.Models.LifeCycleEvents;
-using WorkflowCore.Services.BackgroundTasks;
 
 namespace WorkflowCore.Services
 {
@@ -73,6 +72,7 @@ namespace WorkflowCore.Services
                     });
                     continue;
                 }
+
                 WorkflowActivity.Enrich(step);
                 try
                 {

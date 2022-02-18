@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ConcurrentCollections;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 
@@ -70,7 +71,6 @@ namespace WorkflowCore.Services.BackgroundTasks
                     {
                         activeCount = _activeTasks.Count;
                     }
-
                     if (activeCount >= MaxConcurrentItems)
                     {
                         await Task.Delay(Options.IdleTime);
@@ -88,7 +88,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                         continue;
                     }
 
-                    activity?.SetTag("workflow.item", item);
+                    activity.EnrichWithDequeuedItem(item);
 
                     var hasTask = false;
                     lock (_activeTasks)
@@ -121,7 +121,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, ex.Message);
-                    // activity.RecordException(ex);
+                    activity.RecordException(ex);
                 }
                 finally
                 {
@@ -157,7 +157,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 Logger.LogError(default(EventId), ex, $"Error executing item {itemId} - {ex.Message}");
-                // activity?.RecordException(ex)
+                activity.RecordException(ex);
             }
             finally
             {

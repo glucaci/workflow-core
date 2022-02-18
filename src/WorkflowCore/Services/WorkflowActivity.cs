@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using OpenTelemetry.Trace;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 
@@ -66,8 +67,26 @@ namespace WorkflowCore.Services
 
         public static void Enrich(WorkflowExecutorResult result)
         {
-            // TODO: attach errors
-            // TODO: set status
+            var activity = Activity.Current;
+            if (activity != null)
+            {
+                activity.SetTag("workflow.subscriptions.count", result.Subscriptions.Count);
+                activity.SetTag("workflow.errors.count", result.Errors.Count);
+
+                if (result.Errors.Count > 0)
+                {
+                    activity.SetStatus(Status.Error);
+                    activity.SetStatus(ActivityStatusCode.Error);
+                }
+            }
+        }
+
+        internal static void EnrichWithDequeuedItem(this Activity activity, string item)
+        {
+            if (activity != null)
+            {
+                activity.SetTag("workflow.queue.item", item);
+            }
         }
 
         private static Activity StartRootActivity(

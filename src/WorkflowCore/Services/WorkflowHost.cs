@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 using WorkflowCore.Models.LifeCycleEvents;
@@ -104,7 +105,7 @@ namespace WorkflowCore.Services
             }
             catch (Exception ex)
             {
-                // activity.RecordExceptions()
+                activity.RecordException(ex);
                 throw;
             }
             finally
