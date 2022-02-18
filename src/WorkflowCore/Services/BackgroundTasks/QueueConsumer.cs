@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,65 @@ using WorkflowCore.Models;
 
 namespace WorkflowCore.Services.BackgroundTasks
 {
+    internal static class WorkflowActivity
+    {
+        private static readonly ActivitySource Current = new ActivitySource("WorkflowCore");
+
+        public static Activity StartConsume(QueueType queueType)
+        {
+            Activity.Current = null;
+            var activity = Current.StartActivity($"Workflow Consume {queueType}", ActivityKind.Consumer);
+            activity?.SetTag("workflow.queue", queueType);
+
+            return activity;
+        }
+
+        public static Activity StartPoll(string type)
+        {
+            Activity.Current = null;
+            var activity = Current.StartActivity($"Workflow Poll {type}", ActivityKind.Consumer);
+            activity?.SetTag("workflow.poll", type);
+
+            return activity;
+        }
+
+        public static void EnrichWorkflow(WorkflowInstance workflow)
+        {
+            var current = Activity.Current;
+            if (current != null)
+            {
+                current.DisplayName = $"Workflow {workflow.WorkflowDefinitionId}";
+                current.SetTag("worklfow.id", workflow.Id);
+                current.SetTag("worklfow.definition", workflow.WorkflowDefinitionId);
+                current.SetTag("worklfow.status", workflow.Status);
+            }
+        }
+
+        public static void EnrichWorkflow(WorkflowExecutorResult result)
+        {
+            // TODO: attach errors
+            // TODO: set status
+        }
+
+        public static void Enrich(WorkflowStep workflowStep)
+        {
+            var current = Activity.Current;
+            if (current != null)
+            {
+                var stepName = string.IsNullOrEmpty(workflowStep.Name) ? "Inline" : workflowStep.Name;
+                current.DisplayName += $" Step {stepName}";
+            }
+        }
+
+        public static Activity StartHost()
+        {
+            Activity.Current = null;
+            var activity = Current.StartActivity("Workflow Start Host", ActivityKind.Client);
+
+            return activity;
+        }
+    }
+
     internal abstract class QueueConsumer : IBackgroundTask
     {
         protected abstract QueueType Queue { get; }
@@ -61,6 +121,7 @@ namespace WorkflowCore.Services.BackgroundTasks
 
             while (!cancelToken.IsCancellationRequested)
             {
+                Activity activity = default;
                 try
                 {
                     var activeCount = 0;
@@ -68,33 +129,40 @@ namespace WorkflowCore.Services.BackgroundTasks
                     {
                         activeCount = _activeTasks.Count;
                     }
+
                     if (activeCount >= MaxConcurrentItems)
                     {
                         await Task.Delay(Options.IdleTime);
                         continue;
                     }
 
+                    activity = WorkflowActivity.StartConsume(Queue);
                     var item = await QueueProvider.DequeueWork(Queue, cancelToken);
 
                     if (item == null)
                     {
+                        activity?.Dispose();
                         if (!QueueProvider.IsDequeueBlocking)
                             await Task.Delay(Options.IdleTime, cancelToken);
                         continue;
                     }
+
+                    activity?.SetTag("workflow.item", item);
 
                     var hasTask = false;
                     lock (_activeTasks)
                     {
                         hasTask = _activeTasks.ContainsKey(item);
                     }
+
                     if (hasTask)
                     {
                         _secondPasses.Add(item);
                         if (!EnableSecondPasses)
                             await QueueProvider.QueueWork(item, Queue);
+                        activity?.Dispose();
                         continue;
-                    }                   
+                    }
 
                     _secondPasses.TryRemove(item);
 
@@ -103,7 +171,8 @@ namespace WorkflowCore.Services.BackgroundTasks
                     {
                         _activeTasks.Add(item, waitHandle);
                     }
-                    var task = ExecuteItem(item, waitHandle);
+
+                    var task = ExecuteItem(item, waitHandle, activity);
                 }
                 catch (OperationCanceledException)
                 {
@@ -111,6 +180,11 @@ namespace WorkflowCore.Services.BackgroundTasks
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, ex.Message);
+                    // activity.RecordException(ex);
+                }
+                finally
+                {
+                    activity?.Dispose();
                 }
             }
 
@@ -124,7 +198,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                 handle.WaitOne();
         }
 
-        private async Task ExecuteItem(string itemId, EventWaitHandle waitHandle)
+        private async Task ExecuteItem(string itemId, EventWaitHandle waitHandle, Activity activity)
         {
             try
             {
@@ -142,6 +216,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 Logger.LogError(default(EventId), ex, $"Error executing item {itemId} - {ex.Message}");
+                // activity?.RecordException(ex)
             }
             finally
             {

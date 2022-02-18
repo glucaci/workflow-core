@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 using WorkflowCore.Models.LifeCycleEvents;
+using WorkflowCore.Services.BackgroundTasks;
 
 namespace WorkflowCore.Services
 {
@@ -83,21 +84,34 @@ namespace WorkflowCore.Services
         
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _shutdown = false;
-            PersistenceStore.EnsureStoreExists();
-            await QueueProvider.Start();
-            await LockProvider.Start();
-            await _lifeCycleEventHub.Start();
-            await _searchIndex.Start();
-            
-            // Event subscriptions are removed when stopping the event hub.
-            // Add them when starting.
-            AddEventSubscriptions();
+            var activity = WorkflowActivity.StartHost();
+            try
+            {
+                _shutdown = false;
+                PersistenceStore.EnsureStoreExists();
+                await QueueProvider.Start();
+                await LockProvider.Start();
+                await _lifeCycleEventHub.Start();
+                await _searchIndex.Start();
 
-            Logger.LogInformation("Starting background tasks");
+                // Event subscriptions are removed when stopping the event hub.
+                // Add them when starting.
+                AddEventSubscriptions();
 
-            foreach (var task in _backgroundTasks)
-                task.Start();
+                Logger.LogInformation("Starting background tasks");
+
+                foreach (var task in _backgroundTasks)
+                    task.Start();
+            }
+            catch (Exception ex)
+            {
+                // activity.RecordExceptions()
+                throw;
+            }
+            finally
+            {
+                activity?.Dispose();
+            }
         }
 
         public void Stop()

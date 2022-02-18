@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,13 +58,14 @@ namespace WorkflowCore.Services.BackgroundTasks
 
         private async Task PollWorkflows()
         {
+            Activity activity = WorkflowActivity.StartPoll("Workflows");
             try
             {
                 if (await _lockProvider.AcquireLock("poll runnables", new CancellationToken()))
                 {
                     try
                     {
-                        _logger.LogDebug("Polling for runnable workflows");                        
+                        _logger.LogDebug("Polling for runnable workflows");
 
                         var runnables = await _persistenceStore.GetRunnableInstances(_dateTimeProvider.Now);
                         foreach (var item in runnables)
@@ -85,11 +87,13 @@ namespace WorkflowCore.Services.BackgroundTasks
                                     _logger.LogError(ex, ex.Message);
                                 }
                             }
+
                             if (_greylist.Contains($"wf:{item}"))
                             {
                                 _logger.LogDebug($"Got greylisted workflow {item}");
                                 continue;
                             }
+
                             _logger.LogDebug("Got runnable instance {0}", item);
                             _greylist.Add($"wf:{item}");
                             await _queueProvider.QueueWork(item, QueueType.Workflow);
@@ -104,11 +108,17 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, ex.Message);
+                // TODO: activit.RecordException();
+            }
+            finally
+            {
+                activity?.Dispose();
             }
         }
 
         private async Task PollEvents()
         {
+            Activity activity = WorkflowActivity.StartPoll("Events");
             try
             {
                 if (await _lockProvider.AcquireLock("unprocessed events", new CancellationToken()))
@@ -157,10 +167,15 @@ namespace WorkflowCore.Services.BackgroundTasks
             {
                 _logger.LogError(ex, ex.Message);
             }
+            finally
+            {
+                activity?.Dispose();
+            }
         }
 
         private async Task PollCommands()
         {
+            Activity activity = WorkflowActivity.StartPoll("Commands");
             try
             {
                 if (!_persistenceStore.SupportsScheduledCommands)
@@ -193,6 +208,10 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, ex.Message);
+            }
+            finally
+            {
+                activity?.Dispose();
             }
         }
     }

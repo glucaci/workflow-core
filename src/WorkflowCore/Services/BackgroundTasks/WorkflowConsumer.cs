@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -43,6 +44,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 workflow = await _persistenceStore.GetWorkflowInstance(itemId, cancellationToken);
+                WorkflowActivity.EnrichWorkflow(workflow);
                 if (workflow.Status == WorkflowStatus.Runnable)
                 {
                     try
@@ -51,6 +53,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                     }
                     finally
                     {
+                        WorkflowActivity.EnrichWorkflow(result);
                         await _persistenceStore.PersistWorkflow(workflow, cancellationToken);
                         await QueueProvider.QueueWork(itemId, QueueType.Index);
                         _greylist.Remove($"wf:{itemId}");
