@@ -88,14 +88,13 @@ namespace WorkflowCore.Services.BackgroundTasks
                         continue;
                     }
 
-                    activity.EnrichWithDequeuedItem(item);
+                    activity?.EnrichWithDequeuedItem(item);
 
                     var hasTask = false;
                     lock (_activeTasks)
                     {
                         hasTask = _activeTasks.ContainsKey(item);
                     }
-
                     if (hasTask)
                     {
                         _secondPasses.Add(item);
@@ -112,7 +111,6 @@ namespace WorkflowCore.Services.BackgroundTasks
                     {
                         _activeTasks.Add(item, waitHandle);
                     }
-
                     var task = ExecuteItem(item, waitHandle, activity);
                 }
                 catch (OperationCanceledException)
@@ -121,7 +119,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, ex.Message);
-                    activity.RecordException(ex);
+                    activity?.RecordException(ex);
                 }
                 finally
                 {
@@ -157,7 +155,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 Logger.LogError(default(EventId), ex, $"Error executing item {itemId} - {ex.Message}");
-                activity.RecordException(ex);
+                activity?.RecordException(ex);
             }
             finally
             {

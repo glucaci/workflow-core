@@ -86,15 +86,14 @@ namespace WorkflowCore.Services.BackgroundTasks
                                 catch (Exception ex)
                                 {
                                     _logger.LogError(ex, ex.Message);
+                                    activity?.RecordException(ex);
                                 }
                             }
-
                             if (_greylist.Contains($"wf:{item}"))
                             {
                                 _logger.LogDebug($"Got greylisted workflow {item}");
                                 continue;
                             }
-
                             _logger.LogDebug("Got runnable instance {0}", item);
                             _greylist.Add($"wf:{item}");
                             await _queueProvider.QueueWork(item, QueueType.Workflow);
@@ -146,6 +145,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                                 catch (Exception ex)
                                 {
                                     _logger.LogError(ex, ex.Message);
+                                    activity?.RecordException(ex);
                                 }
                             }
                             if (_greylist.Contains($"evt:{item}"))
