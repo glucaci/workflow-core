@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 
@@ -58,7 +59,7 @@ namespace WorkflowCore.Services.BackgroundTasks
 
         private async Task PollWorkflows()
         {
-            Activity activity = WorkflowActivity.StartPoll("Workflows");
+            var activity = WorkflowActivity.StartPoll("workflows");
             try
             {
                 if (await _lockProvider.AcquireLock("poll runnables", new CancellationToken()))
@@ -108,7 +109,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, ex.Message);
-                // TODO: activit.RecordException();
+                activity?.RecordException(ex);
             }
             finally
             {
@@ -118,7 +119,7 @@ namespace WorkflowCore.Services.BackgroundTasks
 
         private async Task PollEvents()
         {
-            Activity activity = WorkflowActivity.StartPoll("Events");
+            var activity = WorkflowActivity.StartPoll("events");
             try
             {
                 if (await _lockProvider.AcquireLock("unprocessed events", new CancellationToken()))
@@ -166,6 +167,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, ex.Message);
+                activity?.RecordException(ex);
             }
             finally
             {
@@ -175,7 +177,7 @@ namespace WorkflowCore.Services.BackgroundTasks
 
         private async Task PollCommands()
         {
-            Activity activity = WorkflowActivity.StartPoll("Commands");
+            var activity = WorkflowActivity.StartPoll("commands");
             try
             {
                 if (!_persistenceStore.SupportsScheduledCommands)
@@ -208,6 +210,7 @@ namespace WorkflowCore.Services.BackgroundTasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, ex.Message);
+                activity?.RecordException(ex);
             }
             finally
             {
